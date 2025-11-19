@@ -1,0 +1,151 @@
+:root {
+  font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  color: #f4f4f4;
+  background-color: #0f1115;
+}
+
+body {
+  margin: 0;
+  background: radial-gradient(circle at top, #1d2230, #0f1115 60%);
+}
+
+.app {
+  min-height: 100vh;
+  padding: 2rem;
+  box-sizing: border-box;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  gap: 1rem;
+}
+
+.toolbar h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.controls {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.controls label {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.9rem;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background-color: rgba(255, 255, 255, 0.04);
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.card-live {
+  border-color: rgba(255, 120, 117, 0.6);
+}
+
+.card-error {
+  border-color: rgba(255, 174, 0, 0.6);
+}
+
+.card-loading {
+  border-color: rgba(61, 126, 255, 0.4);
+}
+
+.card header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.room-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.room-anchor {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+}
+
+.badge {
+  padding: 0.2rem 0.8rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+}
+
+.badge.live {
+  background-color: #ff4d4f30;
+  color: #ff7875;
+}
+
+.badge.offline {
+  background-color: #2f3542;
+  color: #a4b0be;
+}
+
+.badge.loading,
+.badge.error {
+  background-color: #253544;
+  color: #70a1ff;
+}
+
+.player video {
+  width: 100%;
+  border-radius: 12px;
+  max-height: 220px;
+  background-color: #000;
+}
+
+.meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.placeholder {
+  min-height: 180px;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.placeholder button {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  border-radius: 999px;
+  background-color: #3d7eff;
+  color: white;
+  cursor: pointer;
+}
+
+button {
+  cursor: pointer;
+}
