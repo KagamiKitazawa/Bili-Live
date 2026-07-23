@@ -1,0 +1,30 @@
+name: Codex Cherry Studio Bootstrap
+
+on:
+  push:
+    branches:
+      - codex-cherry-studio-work
+
+permissions:
+  contents: read
+
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Clone pinned Cherry Studio source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone https://github.com/CherryHQ/cherry-studio.git codex-cherry-studio
+          cd codex-cherry-studio
+          git checkout 793e94e1c402473740819dd3fb27d35ba290ea76
+          rm -rf .git
+      - name: Upload pristine source
+        uses: actions/upload-artifact@v4
+        with:
+          name: cherry-studio-pristine-793e94e1
+          path: codex-cherry-studio
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
