@@ -4,14 +4,22 @@ on:
   push:
     branches:
       - codex-cherry-studio-work
+    paths:
+      - .github/workflows/codex-cherry-bootstrap.yml
+      - .github/scripts/patch_codex_cherry.py
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   source:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout carrier branch
+        uses: actions/checkout@v4
+        with:
+          ref: codex-cherry-studio-work
+          fetch-depth: 0
       - name: Clone pinned Cherry Studio source
         shell: bash
         run: |
@@ -28,3 +36,19 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
+      - name: Record workflow run id
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          mkdir -p .github
+          printf '{"run_id":%s,"run_attempt":%s,"artifact":"cherry-studio-pristine-793e94e1"}\n' "$RUN_ID" "$RUN_ATTEMPT" > .github/codex-cherry-bootstrap-result.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/codex-cherry-bootstrap-result.json
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: record Cherry bootstrap workflow run"
+            git push origin HEAD:codex-cherry-studio-work
+          fi
