@@ -1,0 +1,113 @@
+name: Codex Cherry Studio Validate
+
+on:
+  push:
+    branches:
+      - codex-cherry-studio-work
+    paths:
+      - .github/workflows/codex-cherry-validate.yml
+      - .github/codex-patch/**
+
+permissions:
+  contents: write
+
+concurrency:
+  group: codex-cherry-studio-validate
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout carrier branch
+        uses: actions/checkout@v6
+        with:
+          ref: codex-cherry-studio-work
+          fetch-depth: 0
+
+      - name: Reconstruct and verify patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat .github/codex-patch/part-*.b64 > /tmp/codex-cherry.patch.gz.b64
+          echo "36b31e1b5430854015ee08f702663f87de4e10e44002abdb2033b668d77966db  /tmp/codex-cherry.patch.gz.b64" | sha256sum -c -
+          base64 --decode /tmp/codex-cherry.patch.gz.b64 | gzip -d > /tmp/codex-cherry.patch
+          echo "ff90a0df98a9fb02dd4e81c99cc967a059076abd015675037fc385d25587f589  /tmp/codex-cherry.patch" | sha256sum -c -
+
+      - name: Clone pinned upstream and apply patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone https://github.com/CherryHQ/cherry-studio.git codex-cherry-studio
+          cd codex-cherry-studio
+          git checkout 793e94e1c402473740819dd3fb27d35ba290ea76
+          git apply --check /tmp/codex-cherry.patch
+          git apply /tmp/codex-cherry.patch
+          git diff --check
+
+      - name: Install Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.11.1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v5
+        with:
+          version: 11.8.0
+
+      - name: Install dependencies
+        working-directory: codex-cherry-studio
+        run: pnpm install --frozen-lockfile
+
+      - name: Type check
+        working-directory: codex-cherry-studio
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm typecheck 2>&1 | tee ../codex-cherry-typecheck.log
+
+      - name: Provider registry tests
+        working-directory: codex-cherry-studio
+        shell: bash
+        run: |
+          set -o pipefail
+          pnpm test:provider-registry -- packages/provider-registry/src/__tests__/reasoningControls.test.ts 2>&1 | tee ../codex-cherry-provider-tests.log
+
+      - name: Upload validation logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-cherry-validation-logs
+          path: |
+            codex-cherry-typecheck.log
+            codex-cherry-provider-tests.log
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload patched source snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-cherry-patched-source
+          path: codex-cherry-studio
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Record workflow run id
+        if: always()
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          set -euo pipefail
+          printf '{"run_id":%s,"run_attempt":%s,"status":"%s","logs_artifact":"codex-cherry-validation-logs","source_artifact":"codex-cherry-patched-source"}\n' "$RUN_ID" "$RUN_ATTEMPT" "$JOB_STATUS" > .github/codex-cherry-validate-result.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/codex-cherry-validate-result.json
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: record Codex Cherry validation run"
+            git push origin HEAD:codex-cherry-studio-work
+          fi
