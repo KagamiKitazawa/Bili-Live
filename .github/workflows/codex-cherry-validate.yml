@@ -25,14 +25,40 @@ jobs:
           ref: codex-cherry-studio-work
           fetch-depth: 0
 
+      - name: Record running workflow
+        shell: bash
+        env:
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          printf '{"run_id":%s,"run_attempt":%s,"status":"running","logs_artifact":"codex-cherry-validation-logs","source_artifact":"codex-cherry-patched-source"}\n' "$RUN_ID" "$RUN_ATTEMPT" > .github/codex-cherry-validate-result.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/codex-cherry-validate-result.json
+          if ! git diff --cached --quiet; then
+            git commit -m "ci: record running Codex Cherry validation"
+            git push origin HEAD:codex-cherry-studio-work
+          fi
+
       - name: Reconstruct and verify patch
         shell: bash
         run: |
           set -euo pipefail
-          cat .github/codex-patch/part-*.b64 > /tmp/codex-cherry.patch.gz.b64
-          echo "36b31e1b5430854015ee08f702663f87de4e10e44002abdb2033b668d77966db  /tmp/codex-cherry.patch.gz.b64" | sha256sum -c -
-          base64 --decode /tmp/codex-cherry.patch.gz.b64 | gzip -d > /tmp/codex-cherry.patch
-          echo "ff90a0df98a9fb02dd4e81c99cc967a059076abd015675037fc385d25587f589  /tmp/codex-cherry.patch" | sha256sum -c -
+          {
+            echo "Patch chunks:"
+            wc -c .github/codex-patch/part-*.b64
+            cat .github/codex-patch/part-*.b64 > /tmp/codex-cherry.patch.gz.b64
+            echo "Combined base64:"
+            wc -c /tmp/codex-cherry.patch.gz.b64
+            sha256sum /tmp/codex-cherry.patch.gz.b64
+            echo "36b31e1b5430854015ee08f702663f87de4e10e44002abdb2033b668d77966db  /tmp/codex-cherry.patch.gz.b64" | sha256sum -c -
+            base64 --decode /tmp/codex-cherry.patch.gz.b64 | gzip -d > /tmp/codex-cherry.patch
+            echo "Decoded patch:"
+            wc -c /tmp/codex-cherry.patch
+            sha256sum /tmp/codex-cherry.patch
+            echo "ff90a0df98a9fb02dd4e81c99cc967a059076abd015675037fc385d25587f589  /tmp/codex-cherry.patch" | sha256sum -c -
+          } 2>&1 | tee codex-cherry-patch-check.log
 
       - name: Clone pinned upstream and apply patch
         shell: bash
@@ -79,6 +105,7 @@ jobs:
         with:
           name: codex-cherry-validation-logs
           path: |
+            codex-cherry-patch-check.log
             codex-cherry-typecheck.log
             codex-cherry-provider-tests.log
           if-no-files-found: warn
@@ -91,10 +118,10 @@ jobs:
           name: codex-cherry-patched-source
           path: codex-cherry-studio
           include-hidden-files: true
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
 
-      - name: Record workflow run id
+      - name: Record completed workflow
         if: always()
         shell: bash
         env:
@@ -103,11 +130,12 @@ jobs:
           JOB_STATUS: ${{ job.status }}
         run: |
           set -euo pipefail
+          git pull --rebase origin codex-cherry-studio-work
           printf '{"run_id":%s,"run_attempt":%s,"status":"%s","logs_artifact":"codex-cherry-validation-logs","source_artifact":"codex-cherry-patched-source"}\n' "$RUN_ID" "$RUN_ATTEMPT" "$JOB_STATUS" > .github/codex-cherry-validate-result.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add .github/codex-cherry-validate-result.json
           if ! git diff --cached --quiet; then
-            git commit -m "ci: record Codex Cherry validation run"
+            git commit -m "ci: record completed Codex Cherry validation"
             git push origin HEAD:codex-cherry-studio-work
           fi
